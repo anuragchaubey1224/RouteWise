@@ -13,7 +13,7 @@ __pycache__/
 .DS_Store
 
 # Data/Model files (optional)
-*.csv
+# *.csv
 *.pkl
 *.joblib
 *.dylib
