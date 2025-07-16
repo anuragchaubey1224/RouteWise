@@ -1,0 +1,19 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Jupyter Checkpoints
+.ipynb_checkpoints/
+
+# Mac specific
+.DS_Store
+
+# Data/Model files (optional)
+*.csv
+*.pkl
+*.joblib
+*.dylib
