@@ -3,17 +3,22 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 
-#  Temporal features
+# Temporal Feature Extraction 
 class TemporalFeatures(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
         X = X.copy()
-        
-        # Combine order_date and order_time
-        X['order_datetime'] = pd.to_datetime(X['order_date'] + ' ' + pd.to_datetime(X['order_time']).dt.strftime('%H:%M:%S'))
-        X['pickup_datetime'] = pd.to_datetime(X['order_date'] + ' ' + pd.to_datetime(X['pickup_time']).dt.strftime('%H:%M:%S'))
+
+        try:
+            order_time = pd.to_datetime(X['order_time'], errors='coerce').dt.strftime('%H:%M:%S')
+            pickup_time = pd.to_datetime(X['pickup_time'], errors='coerce').dt.strftime('%H:%M:%S')
+            X['order_datetime'] = pd.to_datetime(X['order_date'] + ' ' + order_time, errors='coerce')
+            X['pickup_datetime'] = pd.to_datetime(X['order_date'] + ' ' + pickup_time, errors='coerce')
+        except Exception as e:
+            print("Datetime parsing error:", e)
+            raise
 
         X['order_hour'] = X['order_datetime'].dt.hour
         X['order_minute'] = X['order_datetime'].dt.minute
@@ -23,16 +28,17 @@ class TemporalFeatures(BaseEstimator, TransformerMixin):
 
         X['pickup_hour'] = X['pickup_datetime'].dt.hour
         X['pickup_minute'] = X['pickup_datetime'].dt.minute
+
         return X
 
-# Haversine distance
+#  Haversine Distance 
 def haversine_np(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0)**2
+    a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
     c = 2 * np.arcsin(np.sqrt(a))
-    return 6371 * c
+    return 6371 * c  # Radius of Earth in km
 
 class HaversineDistance(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
@@ -46,7 +52,7 @@ class HaversineDistance(BaseEstimator, TransformerMixin):
         )
         return X
 
-#  time taken from order to pickup
+#  Time Difference 
 class TimeTakenFeature(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
@@ -56,7 +62,7 @@ class TimeTakenFeature(BaseEstimator, TransformerMixin):
         X['order_to_pickup_min'] = (X['pickup_datetime'] - X['order_datetime']).dt.total_seconds() / 60.0
         return X
 
-#  Delivery Speed (km/min)
+#  Delivery Speed
 class DeliverySpeedFeature(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
@@ -66,7 +72,7 @@ class DeliverySpeedFeature(BaseEstimator, TransformerMixin):
         X['delivery_speed_km_min'] = X['haversine_distance_km'] / (X['delivery_time'] + 1e-6)
         return X
 
-#  Drop unused columns
+#  Drop Raw Columns 
 class DropRawColumns(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
@@ -79,9 +85,10 @@ class DropRawColumns(BaseEstimator, TransformerMixin):
             'drop_latitude', 'drop_longitude',
             'order_datetime', 'pickup_datetime'
         ]
-        return X.drop(columns=[col for col in cols_to_drop if col in X.columns])
+        existing_cols = [col for col in cols_to_drop if col in X.columns]
+        return X.drop(columns=existing_cols)
 
-# final feature extraction pipeline
+#  Feature Pipeline 
 feature_pipeline = Pipeline([
     ('temporal', TemporalFeatures()),
     ('haversine', HaversineDistance()),
@@ -90,19 +97,20 @@ feature_pipeline = Pipeline([
     ('dropcols', DropRawColumns())
 ])
 
-# Run (script)
+#  Run Script 
 if __name__ == "__main__":
     input_path = "/Users/anuragchaubey/RouteWise/data/processed/delivery_data_cleaned.csv"
     output_path = "/Users/anuragchaubey/RouteWise/data/processed/delivery_data_features.csv"
 
     df = pd.read_csv(input_path)
 
-    # rename columns to lowercase
+    # Clean column names (lowercase)
     df.columns = df.columns.str.lower()
 
-    # Fit + transform features
-    df_features = feature_pipeline.fit_transform(df)
-
-    # Save output
-    df_features.to_csv(output_path, index=False)
-    print(f" Feature extraction complete. File saved to:\n{output_path}")
+    # Apply feature extraction pipeline
+    try:
+        df_features = feature_pipeline.fit_transform(df)
+        df_features.to_csv(output_path, index=False)
+        print(f" Feature extraction complete. File saved to:\n{output_path}")
+    except Exception as e:
+        print(" Error during feature extraction:", e)
