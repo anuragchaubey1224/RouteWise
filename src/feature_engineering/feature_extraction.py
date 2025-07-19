@@ -1,36 +1,36 @@
-# feature_extraction.py
-
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 
-# 1. Temporal Features
+#  Temporal features
 class TemporalFeatures(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
         X = X.copy()
-        X['order_time'] = pd.to_datetime(X['order_time'])
-        X['pickup_time'] = pd.to_datetime(X['pickup_time'])
+        
+        # Combine order_date and order_time
+        X['order_datetime'] = pd.to_datetime(X['order_date'] + ' ' + pd.to_datetime(X['order_time']).dt.strftime('%H:%M:%S'))
+        X['pickup_datetime'] = pd.to_datetime(X['order_date'] + ' ' + pd.to_datetime(X['pickup_time']).dt.strftime('%H:%M:%S'))
 
-        X['order_hour'] = X['order_time'].dt.hour
-        X['order_minute'] = X['order_time'].dt.minute
-        X['order_dayofweek'] = X['order_time'].dt.dayofweek
+        X['order_hour'] = X['order_datetime'].dt.hour
+        X['order_minute'] = X['order_datetime'].dt.minute
+        X['order_dayofweek'] = X['order_datetime'].dt.dayofweek
         X['is_weekend'] = X['order_dayofweek'].isin([5, 6]).astype(int)
         X['is_peakhour'] = X['order_hour'].isin([8, 9, 18, 19]).astype(int)
 
-        X['pickup_hour'] = X['pickup_time'].dt.hour
-        X['pickup_minute'] = X['pickup_time'].dt.minute
+        X['pickup_hour'] = X['pickup_datetime'].dt.hour
+        X['pickup_minute'] = X['pickup_datetime'].dt.minute
         return X
 
-# 2. Haversine Distance
+# Haversine distance
 def haversine_np(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
+    a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0)**2
     c = 2 * np.arcsin(np.sqrt(a))
     return 6371 * c
 
@@ -46,17 +46,17 @@ class HaversineDistance(BaseEstimator, TransformerMixin):
         )
         return X
 
-# 3. Time Between Order & Pickup (in minutes)
+#  time taken from order to pickup
 class TimeTakenFeature(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
         X = X.copy()
-        X['order_to_pickup_min'] = (X['pickup_time'] - X['order_time']).dt.total_seconds() / 60.0
+        X['order_to_pickup_min'] = (X['pickup_datetime'] - X['order_datetime']).dt.total_seconds() / 60.0
         return X
 
-# 4. Delivery Speed (km/min)
+#  Delivery Speed (km/min)
 class DeliverySpeedFeature(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
@@ -66,7 +66,7 @@ class DeliverySpeedFeature(BaseEstimator, TransformerMixin):
         X['delivery_speed_km_min'] = X['haversine_distance_km'] / (X['delivery_time'] + 1e-6)
         return X
 
-# 5. Drop Unused Columns
+#  Drop unused columns
 class DropRawColumns(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
@@ -74,13 +74,14 @@ class DropRawColumns(BaseEstimator, TransformerMixin):
     def transform(self, X):
         X = X.copy()
         cols_to_drop = [
-            'order_time', 'pickup_time',
+            'order_date', 'order_time', 'pickup_time',
             'store_latitude', 'store_longitude',
-            'drop_latitude', 'drop_longitude'
+            'drop_latitude', 'drop_longitude',
+            'order_datetime', 'pickup_datetime'
         ]
         return X.drop(columns=[col for col in cols_to_drop if col in X.columns])
 
-# Final Feature Engineering Pipeline
+# final feature extraction pipeline
 feature_pipeline = Pipeline([
     ('temporal', TemporalFeatures()),
     ('haversine', HaversineDistance()),
@@ -89,14 +90,14 @@ feature_pipeline = Pipeline([
     ('dropcols', DropRawColumns())
 ])
 
-# Run  (script)
+# Run (script)
 if __name__ == "__main__":
     input_path = "/Users/anuragchaubey/RouteWise/data/processed/delivery_data_cleaned.csv"
     output_path = "/Users/anuragchaubey/RouteWise/data/processed/delivery_data_features.csv"
 
     df = pd.read_csv(input_path)
 
-    # Rename columns to lowercase for consistency
+    # rename columns to lowercase
     df.columns = df.columns.str.lower()
 
     # Fit + transform features
@@ -104,4 +105,4 @@ if __name__ == "__main__":
 
     # Save output
     df_features.to_csv(output_path, index=False)
-    print(f"✅ Feature extraction complete. File saved to:\n{output_path}")
+    print(f" Feature extraction complete. File saved to:\n{output_path}")
