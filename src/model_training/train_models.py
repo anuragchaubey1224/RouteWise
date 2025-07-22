@@ -1,3 +1,5 @@
+# train_models.py
+
 import os
 import joblib
 import pandas as pd
@@ -14,11 +16,11 @@ from sklearn.metrics import (
     r2_score
 )
 
-# ✅ Update: Model save directory
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "models/")
+#  model save directory
+MODEL_DIR = "/Users/anuragchaubey/RouteWise/models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# 📌 Utility to calculate metrics
+#  Metric calculator
 def calculate_metrics(y_true, y_pred) -> Dict[str, float]:
     return {
         "MAE": mean_absolute_error(y_true, y_pred),
@@ -27,7 +29,7 @@ def calculate_metrics(y_true, y_pred) -> Dict[str, float]:
         "R2": r2_score(y_true, y_pred)
     }
 
-# 📌 Optional Cross-validation metrics
+#  cross-validation metric calculator
 def get_cv_metrics(model, X, y, cv: int) -> Dict[str, float]:
     mae_scores = -cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_error')
     rmse_scores = -cross_val_score(model, X, y, cv=cv, scoring='neg_root_mean_squared_error')
@@ -42,7 +44,7 @@ def get_cv_metrics(model, X, y, cv: int) -> Dict[str, float]:
         "CV_R2_Std": r2_scores.std(),
     }
 
-# 🚀 Main training function
+# main training function
 def train_models(
     df: pd.DataFrame,
     target_column: str = "delivery_time",
@@ -51,27 +53,20 @@ def train_models(
     do_cross_validation: bool = False,
     cv_folds: int = 5
 ) -> Dict[str, Dict]:
-    """
-    Trains multiple regression models and returns performance metrics and trained models.
 
-    Returns:
-        {
-            'trained_models': {model_name: model_object},
-            'performance_metrics': {model_name: {metric_name: value}}
-        }
-    """
     if target_column not in df.columns:
-        raise ValueError(f"❌ Target column '{target_column}' not found in the dataframe.")
+        raise ValueError(f" Target column '{target_column}' not found in the dataframe.")
 
+    #  split features and target
     X = df.drop(columns=[target_column])
     y = df[target_column]
 
-    # Split the dataset
+    #  train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
 
-    # Models to train
+    #  define models
     models = {
         "LinearRegression": LinearRegression(),
         "RandomForest": RandomForestRegressor(random_state=random_state),
@@ -84,28 +79,33 @@ def train_models(
     }
 
     for model_name, model in models.items():
-        print(f"\n✅ Training: {model_name}")
+        print(f"\n Training: {model_name}")
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
-        # Metrics
+        #  evaluate performance
         test_metrics = calculate_metrics(y_test, y_pred)
         results["performance_metrics"][model_name] = test_metrics
 
         print(f"📊 Test: MAE={test_metrics['MAE']:.2f}, RMSE={test_metrics['RMSE']:.2f}, R2={test_metrics['R2']:.4f}")
 
-        # Cross-validation
+        #  cross-validation (optional)
         if do_cross_validation:
-            print(f"🔁 Performing {cv_folds}-Fold CV for {model_name}...")
+            print(f" Performing {cv_folds}-Fold CV for {model_name}...")
             cv_metrics = get_cv_metrics(model, X, y, cv=cv_folds)
             results["performance_metrics"][model_name].update(cv_metrics)
 
-        # ✅ Save the model to RouteWise's model folder
-        model_path = os.path.join(MODEL_DIR, f"{model_name}.pkl")
-        joblib.dump(model, model_path)
-        print(f"💾 Model saved to: {model_path}")
+            print(f"   CV Mean: MAE={cv_metrics['CV_MAE_Mean']:.2f}, RMSE={cv_metrics['CV_RMSE_Mean']:.2f}, R2={cv_metrics['CV_R2_Mean']:.4f}")
+            print(f"   CV Std : MAE={cv_metrics['CV_MAE_Std']:.2f}, RMSE={cv_metrics['CV_RMSE_Std']:.2f}, R2={cv_metrics['CV_R2_Std']:.4f}")
 
-        # Add to trained model dictionary
+        # save model
+        model_path = os.path.join(MODEL_DIR, f"{model_name}.pkl")
+        try:
+            joblib.dump(model, model_path)
+            print(f" Model saved to: {model_path}")
+        except Exception as e:
+            print(f" Error saving {model_name}: {e}")
+
         results["trained_models"][model_name] = model
 
     return results
