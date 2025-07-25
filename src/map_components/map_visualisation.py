@@ -117,7 +117,7 @@ def visualize_delivery_routes_on_map(
             tooltip="delivery position"
         ).add_to(m)
 
-        # मार्ग रेखा
+        # route line
         folium.PolyLine(
             locations=[[p_lat, p_lon], [d_lat, d_lon]],
             color='blue',
