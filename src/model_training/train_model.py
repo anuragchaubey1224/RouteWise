@@ -32,7 +32,7 @@ def calculate_metrics(y_true, y_pred) -> Dict[str, float]:
         "R2": r2_score(y_true, y_pred),
     }
 
-# Cross-validation metrics function
+# cross-validation metrics function
 def get_cv_metrics(model, X, y, cv: int = 5) -> Dict[str, float]:
     mae = -cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_error', n_jobs=-1)
     rmse = -cross_val_score(model, X, y, cv=cv, scoring='neg_root_mean_squared_error', n_jobs=-1)
