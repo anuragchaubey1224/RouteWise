@@ -29,7 +29,7 @@ from scaling import CustomScalerTransformer
 from feature_selection import TreeFeatureSelector
 
 
-# global components (loaded once )
+# global components  (loaded once)
 # paths to saved pipeline and model
 PREPROCESSING_PIPELINE_PATH = os.path.join(MODEL_DIR, 'preprocessing_pipeline.joblib')
 
@@ -57,8 +57,8 @@ def load_inference_components():
         print(f" error loading preprocessing pipeline: {e}")
         return False
     
-    # Try loading the best tuned model (e.g., XGBoost, RandomForest)
-    # This logic should match what's saved in main_pipeline.py
+    # try loading the best tuned model (e.g., XGBoost, RandomForest)
+    # this logic should match what's saved in main_pipeline.py
     best_model_found = False
     
     # Prioritize XGBoost if it was the best model
