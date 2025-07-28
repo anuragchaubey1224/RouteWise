@@ -17,7 +17,7 @@ def visualize_locations_on_map(
     visualizes individual locations on a Folium map.
     """
     if df.empty:
-        print("⚠️ dataframe empty")
+        print(" dataframe empty")
         return
 
     if latitude_col not in df.columns or longitude_col not in df.columns:
